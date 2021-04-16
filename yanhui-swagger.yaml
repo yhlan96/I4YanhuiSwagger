@@ -1,0 +1,760 @@
+openapi: 3.0.1
+info:
+  title: ESN Application
+  description: API description for an emergency social network application.
+  version: 1.0.0
+servers:
+- url: http://localhost:2021/api
+tags:
+- name: users
+  description: All user routes
+- name: access_token
+  description: All access token routes
+- name: statuses
+  description: All statuses route
+- name: messages
+  description: All messages routes
+- name: conversations
+  description: All conversations routes
+- name: announcements
+  description: All announcements routes
+- name: medical_support
+  description: All medical support routes
+
+paths:
+  /users:
+    get:
+      tags:
+      - users
+      summary: Returns a list of users.
+      parameters:
+        - in: query
+          name: username
+          schema:
+            $ref: '#/components/schemas/username'
+          required: false
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/status'
+          required: false
+      responses:
+        200:
+          description: User directory retrieval successful
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    userId:
+                      $ref: '#/components/schemas/userId'
+                    username:
+                      $ref: '#/components/schemas/username'
+                    status:
+                      $ref: '#/components/schemas/status'
+                    isOnline:
+                      type: boolean
+                      example: false
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: [] 
+    post:
+      tags:
+      - users
+      summary: Add a new user to the community.
+      requestBody:
+        description: The request body for adding a user
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: bob
+                password:
+                  type: string
+                  example: password1
+        required: true
+      responses:
+        201:
+          description: User creation successful
+        400:
+          description: Username/password is invalid or missing
+        406:
+          description: Username not allowed
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      
+  /access_token:
+    post:
+      tags:
+      - access_token
+      summary: Authorize a user.
+      requestBody:
+        description: The request body for adding a user
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  example: bob
+                password:
+                  type: string
+                  example: password1
+        required: true
+      responses:
+        200:
+          description: Access token creation successful
+          headers:
+            Set-Cookie:
+              description: Adds the jwt to the cookie
+              schema:
+                type: string
+        400:
+          description: Username/password is either invalid or missing
+        401:
+          description: Username/password is invalid or missing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: number
+                    example: 1
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+    delete:
+      tags:
+      - access_token
+      summary: Delete access token to log out user.
+      responses:
+        200:
+          description: Access token revoke successful
+        400:
+          description: Bad Request
+        403:
+          description: Forbidden
+      security:
+         - cookieAuth: []
+ 
+  /messages/public:
+    get:
+      tags:
+      - messages
+      summary: Returns a list of public messages
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/orderParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/lengthParam'
+      responses:
+        201: 
+          description: Public message history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/basicMessage'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+        - cookieAuth: []
+    post:
+      tags:
+      - messages
+      summary: Add a new message to the public wall.
+      requestBody:
+        description: The request body for writing a new message
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  example: Hello! How's your'e day?
+        required: true
+      responses:
+        201:
+          description: Message post successful
+        400:
+          description: Invalid or missing parameters
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+         
+  /messages/private:
+    post:
+      tags:
+      - messages
+      summary: Add a new private message.
+      requestBody:
+        description: The request body for writing a new message
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipientId: 
+                  type: number
+                  example: 124
+                message:
+                  type: string
+                  example: Hello! How's your day?
+        required: true
+      responses:
+        201:
+          description: Message post successful
+        400:
+          description: Invalid or missing parameters
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+  
+  /messages/private/{userId1}/{userId2}:
+    get:
+      tags:
+      - messages
+      summary: Return a list of private messages in the conversation between two users
+      description: Permissions - Must be the sender or recipient of the messages
+      parameters:
+        - in: path
+          name: userId1
+          schema:
+            type: string
+          examples:
+              Numbers:
+                value:  123
+              My channel:
+                value: me
+          description: User ID of one of the user in the conversation
+          required: true
+        - in: path
+          name: userId2
+          schema:
+            type: string
+          examples:
+              Numbers:
+                value:  124
+          description: User ID of another user in the conversation
+          required: true
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/orderParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/lengthParam'
+      responses:
+        200:
+          description: Private message history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/privateMessage'
+        403:
+          description: Permission denied
+        404:
+          description: User IDs are missing in the path OR one of the users doesn't exist
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+           $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []       
+  
+  /messages/private/{messageId}/read:
+    put:
+      tags:
+      - messages
+      summary: Mark a message as read
+      description: Set read attribute of a private message to true.<br>Permissions - Must be the recipient of the message
+      parameters:
+        - in: path
+          name: messageId
+          schema:
+            type: integer
+            example: 34230849
+          required: true
+          description: The private message ID.
+      responses:
+          200:
+            description: Message's unread status update successfully
+          403:
+            description: Permission denied or Message ID doesn't exist
+          404:
+            description: Message ID is missing in route
+          401:
+            $ref: '#/components/responses/UnauthorizedError'
+          500:
+           $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+    
+  /users/{userId}/messages/private/unread:
+    get:
+      tags:
+      - messages
+      summary: Get a list of unread private messages for a user
+      description: Return a list of unread private messages that has the user as recipient.<br>Permission - Must be recipient of the messages
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: integer
+          examples:
+            Number:
+              value:  123
+            me:
+              value: me
+          required: true
+          description: The private message ID.
+      responses:
+          200:
+            description: Public message history retrieved successfully
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/privateMessage'
+          403:
+            description: Permission Denied
+          404:
+            description: User ID is missing in the route OR the user cannot be found
+          401:
+            $ref: '#/components/responses/UnauthorizedError'
+          500:
+           $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+  
+  /users/{userId}/conversations:
+    get:
+      tags:
+      - conversations
+      summary: Get all private chats that the user belongs to
+      description: Return a list of one-to-one private chats that the user is part of. <br>Permission -  conversation owners
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: integer
+          examples:
+              Number:
+                value:  123
+              me:
+                value: me
+          required: true
+          description: The user Id 
+      responses:
+        200:
+          description: A list of users that the user has conversation with
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    participant:
+                      type: object
+                      properties:
+                        userId:
+                          type: integer
+                          example: 1
+                        username:
+                          type: string
+                          example: bob1
+                    hasUnread:
+                      description: whether the user has unread messages in the chat
+                      type: boolean
+                      example: false
+        403:
+          description: Permission denied. You don't have access to this person's conversation.
+        404:
+           description: User ID is missing in the route or the user ID cannot be found
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+        - cookieAuth: []
+      
+  /statuses:
+    post:
+      tags:
+      - statuses
+      summary: Add a new status.
+      requestBody:
+        description: The request body for new status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  $ref: '#/components/schemas/status'
+        required: true
+      responses:
+        200:
+          description: Status saved successfully
+        400:
+          description: Invalid or missing parameters
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+         
+  /users/{userId}/status:
+    get:
+      tags:
+      - statuses
+      summary: Get a user's current status
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: Retrieved status successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/status'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          description: Permission denied
+        404:
+          description: User ID is missing in the route or the user ID cannot be found
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+        - cookieAuth: []
+          
+  /users/{userId}/statuscrumb:
+    get:
+      tags:
+      - statuses
+      summary: Get a user's status history
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: integer
+          required: true
+        - $ref: '#/components/parameters/orderParam'
+        - $ref: '#/components/parameters/lengthParam'
+      responses:
+        200:
+          description: Status history is return successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    timestamp: 
+                      $ref: '#/components/schemas/timestamp'
+                    status:
+                      $ref: '#/components/schemas/status'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          description: Permission denied
+        404:
+          description: User ID is missing in the route or the user ID is not found
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+        - cookieAuth: []
+          
+  /announcements:
+    get:
+      tags:
+      - announcements
+      summary: Get a list of public announcements
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+        - $ref: '#/components/parameters/orderParam'
+        - $ref: '#/components/parameters/offsetParam'
+        - $ref: '#/components/parameters/lengthParam'
+      responses:
+        200:
+          description: Announcements return successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    announcementId:
+                      type: integer
+                      example: 20
+                    author:
+                      type: string
+                      example: James
+                      description: username of the announcement's author
+                    announcement:
+                      $ref: '#/components/schemas/announcement'
+                    timestamp: 
+                      $ref: '#/components/schemas/timestamp'
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+           - cookieAuth: []
+    post:
+      tags:
+      - announcements
+      summary: Post a public announcement
+      requestBody:
+        description: The request body for writing a new message
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                announcement:
+                  $ref: '#/components/schemas/announcement'
+        required: true
+      responses:
+        201:
+          description: Announcement posted successfully
+        400:
+          description: Invalid or missing parameters
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        403:
+          description: Permission denied - Only coordinator is allowed to post an announcement
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+      
+      
+  /medical_support:
+    get:
+      tags:
+      - medical_support
+      summary: Get a list of medical support
+      parameters:
+        - $ref: '#/components/parameters/searchParam'
+      responses:
+        200:
+          description: Medical support return successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    medicalSupportId:
+                      type: integer
+                      example: 20
+                    supporter:
+                      type: object
+                      properties:
+                        supporterId:  
+                          $ref: '#/components/schemas/userId'
+                        supportname: 
+                          type: string
+                          example: "Yanhui"
+                      description: name 
+                    medicalSupport:
+                      $ref: '#/components/schemas/medicalSupport'
+                    timestamp: 
+                      $ref: '#/components/schemas/timestamp'
+                    city:
+                      type: string
+                      example: Seattle
+                      description: city where the support is available
+                    state:
+                      type: string
+                      example: WA
+                      description: state where the support is available
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+           - cookieAuth: []
+    post:
+      tags:
+      - medical_support
+      summary: Post a medical support
+      requestBody:
+        description: The request body for writing a new message
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                medicalSupport:
+                  $ref: '#/components/schemas/medicalSupport'
+                supporter:
+                  type: string
+                  example: James
+                  description: name of the supporter
+                city:
+                  type: string
+                  example: Seattle
+                  description: city where the support is available
+                state:
+                  type: string
+                  example: WA
+                  description: state where the support is available
+        required: true
+      responses:
+        201:
+          description: Medical support posted successfully
+        400:
+          description: Invalid or missing parameters
+        401:
+          $ref: '#/components/responses/UnauthorizedError'
+        500:
+          $ref: '#/components/responses/InternalSeverError'
+      security:
+         - cookieAuth: []
+         
+         
+         
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: jwt
+  schemas:
+    status:
+      type: string
+      enum: [ok, emergency, help, undefined]
+      example: ok
+    userId:
+      type: integer
+      example: 1
+    username:
+      type: string
+      example: bob1
+    timestamp:
+      type: integer
+      example: 1617092528
+      description: unix timestamp
+    announcement:
+      type: string
+      example: Wild fire Updates
+    user:
+      type: object
+      properties:
+        userId:  
+          $ref: '#/components/schemas/userId'
+        username: 
+          $ref: '#/components/schemas/username'
+        status:
+          $ref: '#/components/schemas/status'
+    basicMessage:
+      type: object
+      properties:
+        messageId: 
+          type: number
+          example: 123
+        message:
+          type: string
+          example: Hello! My name is not bob
+        timestamp:
+          $ref: '#/components/schemas/timestamp'
+        sender:  
+          $ref: '#/components/schemas/user'
+    privateMessage:
+      type: object
+      properties:
+        messageId: 
+          type: number
+          example: 123
+        message:
+          type: string
+          example: Hello! My name is not bob
+        timestamp:
+          $ref: '#/components/schemas/timestamp'
+        read:
+          type: boolean
+          example: false
+        sender:  
+          $ref: '#/components/schemas/user'
+        recipient:
+          $ref: '#/components/schemas/user'
+    medicalSupport:
+      type: array
+      items: 
+        type: string
+        enum: [CPR, WoundTreatment, FirstAidKit, Mask]
+      example: [CPR, Mask]
+  parameters:
+    searchParam:
+      in: query
+      description: Text that the search result should contain.
+      name: search
+      schema:
+        type: string
+        example: Seattle
+      required: false
+      
+    orderParam:
+      in: query
+      description: Order of the items in the result, ascend or descend.
+      name: order
+      schema:
+        type: string
+        enum: [asc, desc]
+        example: desc
+      required: false
+    
+    offsetParam:
+      in: query
+      description: Number of items to skip before returning the results.
+      name: offset
+      schema:
+        type: integer
+        example: 0
+      required: false
+    
+    lengthParam:
+      in: query
+      description: Maximum number of items to return.
+      name: length
+      schema:
+        type: integer
+        example: 10
+      required: false
+      
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid
+    InternalSeverError:
+      description: Internal server error
