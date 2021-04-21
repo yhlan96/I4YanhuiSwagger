@@ -713,8 +713,8 @@ components:
       type: array
       items: 
         type: string
-        enum: [CPR, WoundTreatment, FirstAidKit, Mask]
-      example: [CPR, Mask]
+        enum: [cpr, wound treatment, first aid kit, mask]
+      example: [cpr, wound treatment]
   parameters:
     searchParam:
       in: query
