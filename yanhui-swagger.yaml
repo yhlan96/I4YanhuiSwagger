@@ -583,7 +583,7 @@ paths:
                       properties:
                         supporterId:  
                           $ref: '#/components/schemas/userId'
-                        supportname: 
+                        supportName: 
                           type: string
                           example: "Yanhui"
                       description: name 
