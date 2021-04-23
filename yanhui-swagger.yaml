@@ -558,7 +558,7 @@ paths:
          - cookieAuth: []
       
       
-  /medical_support:
+  /medical_supports:
     get:
       tags:
       - medical_support
@@ -621,10 +621,6 @@ paths:
               properties:
                 medicalSupport:
                   $ref: '#/components/schemas/medicalSupport'
-                supporterName:
-                  type: string
-                  example: James
-                  description: name of the supporter
                 city:
                   type: string
                   example: Seattle
@@ -646,7 +642,7 @@ paths:
       security:
          - cookieAuth: []
   
-  /medical_support/{userId}/{medicalSupportId}:  
+  /medical_supports/{userId}/{medicalSupportId}:  
     delete:
       tags:
       - medical_support
